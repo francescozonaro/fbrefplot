@@ -18,12 +18,8 @@ initPlotting()
 outputFolder, dataFolder = initFolders(imageSubFolder="multibar")
 
 # Constants
-TEAM_NAME = "Tottenham"
-LINEUP_TEAM_NAME = "Tottenham Hotspur"
-# TEAM_NAME = "Manchester Utd"
-# LINEUP_TEAM_NAME = "Manchester United"
-# TEAM_NAME = "Chelsea"
-# LINEUP_TEAM_NAME = "Chelsea"
+TEAM_NAME = "Liverpool"
+LINEUP_TEAM_NAME = "Liverpool"
 CACHING_PATH = os.path.join(dataFolder, f"caching.pkl")
 VISUAL_FILENAME = "250614_totPlayerDif"
 
@@ -32,7 +28,7 @@ fbref = sd.FBref(leagues="ENG-Premier League", seasons=2024)
 
 if not os.path.exists(CACHING_PATH):
     df = fbref.read_schedule().reset_index()
-    df = flattenMultiCol(df)
+    df.columns = flattenMultiCol(df.columns)
 
     df = df[(df["home_team"] == TEAM_NAME) | (df["away_team"] == TEAM_NAME)]
     df[["home_score", "away_score"]] = (
@@ -84,14 +80,6 @@ if not os.path.exists(CACHING_PATH):
         ]
         startersSet = set(starters["player"])
 
-        for _, player_row in starters.iterrows():
-            pName = player_row["player"]
-            playerData[pName]["matches"] += 1
-            playerData[pName]["gA"] += rowGA
-            playerData[pName]["xGA"] += rowxGA
-            playerData[pName]["gS"] += rowGS
-            playerData[pName]["xG"] += rowxG
-
         for pName in allPlayersOnTeam:
             if pName in startersSet:
                 playerData[pName]["matches"] += 1
@@ -114,8 +102,8 @@ if not os.path.exists(CACHING_PATH):
 else:
     pdf = pd.read_pickle(CACHING_PATH)
 
-
-pdf = pdf[pdf["matches"] >= 10]
+pdf = pdf[pdf["matches"] >= 7]
+pdf = pdf[pdf["matches_not"] >= 7]
 pdf["ga90"] = pdf["gA"] / pdf["matches"]
 pdf["xga90"] = pdf["xGA"] / pdf["matches"]
 pdf["gs90"] = pdf["gS"] / pdf["matches"]
@@ -246,7 +234,7 @@ for ax in axs.flatten():
 fig.text(
     0.01,
     1.0,
-    "Who made the difference? Tottenham's key players (24/25)",
+    "Who made the difference? Liverpool's key players (24/25)",
     ha="left",
     va="bottom",
     fontsize=20,
@@ -254,7 +242,7 @@ fig.text(
     color="black",
 )
 
-subtitleText = "Difference in performance key metrics per 90 minutes when a player is starting versus not starting for Tottenham in 2024-25. These plots analyze changes in Goals Scored, Expected Goals (xG), Goals Conceded, and Expected Goals Against (xGA) per 90 minutes, revealing individual player impact on team dynamics. Highlighted players indicate the top and bottom four performers, based on their aggregated total normalized difference across all four metrics. Data from FBRef | @francescozonaro"
+subtitleText = "Difference in performance key metrics per 90 minutes when a player is starting versus not starting for Liverpool in 2024-25. These plots analyze changes in Goals Scored, Expected Goals (xG), Goals Conceded, and Expected Goals Against (xGA) per 90 minutes, revealing individual player impact on team dynamics. Highlighted players indicate the top and bottom four performers, based on their aggregated total normalized difference across all four metrics. Data from FBRef | @francescozonaro"
 charsPerLine = 125
 justifiedText = justifyText(subtitleText, charsPerLine)
 # wrapped_subtitle_text = textwrap.fill(long_subtitle_text, width=max_chars_per_line)

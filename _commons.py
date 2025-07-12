@@ -16,10 +16,10 @@ def initFolders(imageSubFolder: str):
     return outFolder, dataFolder
 
 
-def flattenMultiCol(df):
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = ["_".join(map(str, col)).strip("_") for col in df.columns.values]
-    return df
+def flattenMultiCol(columns):
+    if isinstance(columns, pd.MultiIndex):
+        return ["_".join(map(str, col)).strip("_").lower() for col in columns.values]
+    return columns
 
 
 def justifyText(text, width):

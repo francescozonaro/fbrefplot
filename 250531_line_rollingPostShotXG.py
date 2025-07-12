@@ -6,70 +6,63 @@ import matplotlib.colors as mcolors
 import os
 import urllib.request
 import numpy as np
+import datetime
 
 from PIL import Image
+from _commons import initPlotting, initFolders, flattenMultiCol, justifyText
+
 
 # Initialization
-plt.rcParams["font.family"] = "Monospace"
-outputFolder = os.path.join("imgs/", "lineplot")
-os.makedirs(outputFolder, exist_ok=True)
+initPlotting()
+outputFolder, dataFolder = initFolders(imageSubFolder="line")
 
-TEAM_NAME = "Torino"
-PLAYER_NAME = "Vanja Milinković-Savić"
-OUTPUT_NAME = "milinkovicSavicRollingPSXG"
+TEAM_NAME = "Espanyol"
+PLAYER_NAME = "Joan García"
+SALTY_SALT = datetime.date.today().strftime("%Y%m%d")
+OUTPUT_NAME = f"{SALTY_SALT}_{PLAYER_NAME.replace(' ', '')}PSXG"
+TITLE_TEXT = "Joan García | PSxG minus goals against rolling gap"
+SUBTITLE_TEXT = "A look at Joan García's 2024-25 season at Espanyol, consistently overperforming his Post-Shot Expected Goals (PSxG) faced, as shown by the rolling gap (10-game window) between goals conceded and PSxG."
+CHARS_PER_LINE = 80
+DATA_CACHING_PATH = os.path.join(dataFolder, f"{SALTY_SALT}_data.pkl")
 ROLLING_WINDOW = 10
 
-# Data
-folder_name = "fbrefData"
-schedule_path = os.path.join(folder_name, "31052025_schedule.pkl")
-data_path = os.path.join(folder_name, "31052025_data.pkl")
-fbref = sd.FBref(leagues="ITA-Serie A", seasons=range(2023, 2025))
+fbref = sd.FBref(leagues="ESP-La Liga", seasons=2024)
 
-if not os.path.exists(schedule_path):
-    schedule_df = fbref.read_schedule()
-    os.makedirs(folder_name, exist_ok=True)
-    schedule_df.to_pickle(schedule_path)
-else:
-    schedule_df = pd.read_pickle(schedule_path)
+df = []
 
-schedule_df = schedule_df.reset_index()
-if isinstance(schedule_df.columns, pd.MultiIndex):
-    schedule_df.columns = [
-        "_".join(col).strip("_") for col in schedule_df.columns.values
-    ]
+if not os.path.exists(DATA_CACHING_PATH):
+    sdf = fbref.read_schedule().reset_index()
+    sdf.columns = flattenMultiCol(sdf.columns)
 
-schedule_df = schedule_df[
-    schedule_df[["home_team", "away_team"]].isin([f"{TEAM_NAME}"]).any(axis=1)
-].reset_index(drop=True)
+    sdf = sdf[(sdf["home_team"] == TEAM_NAME) | (sdf["away_team"] == TEAM_NAME)]
+    sdf[["home_score", "away_score"]] = (
+        sdf["score"]
+        .str.replace("[–—−]", "-", regex=True)
+        .str.split("-", expand=True)
+        .astype(int)
+    )
+    sdf = sdf.reset_index(drop=True)
 
-df_rows = []
-
-if os.path.exists(data_path):
-    df = pd.read_pickle(data_path)
-else:
-    for idx, row in schedule_df.iterrows():
-        game_id = row["game_id"]
+    for idx, row in sdf.iterrows():
+        gameId = row["game_id"]
 
         try:
-            match_df = fbref.read_player_match_stats(
-                stat_type="keepers", match_id=game_id
-            )
-            match_df = match_df.reset_index()
-            if isinstance(match_df.columns, pd.MultiIndex):
-                match_df.columns = [
-                    "_".join(col).strip("_") for col in match_df.columns.values
-                ]
-            match_df.columns = [col.lower() for col in match_df.columns]
+            mdf = fbref.read_player_match_stats(
+                stat_type="keepers", match_id=gameId
+            ).reset_index()
+            mdf.columns = flattenMultiCol(mdf.columns)
         except Exception as e:
-            print(f"Failed to get stats for match {game_id}: {e}")
+            print(f"Failed to get stats for match {gameId}: {e}")
             continue
 
-        keeper_match_rows = match_df[match_df["player"] == PLAYER_NAME]
-        df_rows.append(keeper_match_rows)
+        gkMatchRows = mdf[mdf["player"] == PLAYER_NAME]
+        df.append(gkMatchRows)
 
-    df = pd.concat(df_rows, ignore_index=True)
-    os.makedirs(folder_name, exist_ok=True)
-    df.to_pickle(data_path)
+    df = pd.concat(df, ignore_index=True)
+    os.makedirs(dataFolder, exist_ok=True)
+    df.to_pickle(DATA_CACHING_PATH)
+else:
+    df = pd.read_pickle(DATA_CACHING_PATH)
 
 df["psxg_rolling"] = (
     df["shot stopping_psxg"].rolling(window=ROLLING_WINDOW, min_periods=0).mean()
@@ -99,7 +92,7 @@ ax.spines["right"].set_visible(False)
 ax.spines["top"].set_visible(False)
 ax.grid(axis="y", ls="--", color="lightgrey")
 ax.set_xlabel("Match index", size=10, labelpad=10)
-ax.set_ylim(0, 2.2)
+ax.set_ylim(0, max(df["ga_rolling"].max(), df["psxg_rolling"].max()) + 0.1)
 ax.set_xlim(-0.5, df.shape[0])
 
 ax.plot(
@@ -167,7 +160,7 @@ for x in [ROLLING_WINDOW]:
         zorder=2,
     )
     text_ = ax.annotate(
-        xy=(x, 2.1),
+        xy=(x, 0.2),
         text=f"{ROLLING_WINDOW} games\nwindow",
         color="black",
         size=7,
@@ -214,13 +207,13 @@ for x in seasonChangeIndices:
             ]
         )
 
-league_logo = "https://images.fotmob.com/image_resources/logo/leaguelogo/55.png"
+league_logo = "https://images.fotmob.com/image_resources/logo/leaguelogo/87.png"
 team_icon = Image.open(urllib.request.urlopen(league_logo)).convert("LA")
-logo_ax = fig.add_axes([0.05, 0.98, 0.04, 0.04], anchor="C")
+logo_ax = fig.add_axes([0.05, 0.9825, 0.04, 0.04], anchor="C")
 logo_ax.imshow(team_icon)
 logo_ax.axis("off")
 
-team_logo = "https://images.fotmob.com/image_resources/logo/teamlogo/9804.png"
+team_logo = "https://images.fotmob.com/image_resources/logo/teamlogo/8558.png"
 team_icon = Image.open(urllib.request.urlopen(team_logo)).convert("LA")
 team_ax = fig.add_axes([0.05, 0.93, 0.04, 0.04], anchor="C")
 team_ax.imshow(team_icon)
@@ -230,19 +223,21 @@ team_ax.axis("off")
 ax.text(
     0,
     1.15,
-    "Vanja 'the wall' Milinković-Savić",
+    TITLE_TEXT,
     ha="left",
     va="bottom",
-    fontsize=15,
+    fontsize=14,
     weight="bold",
     color="black",
     transform=ax.transAxes,
 )
 
+justifiedText = justifyText(SUBTITLE_TEXT, CHARS_PER_LINE)
+
 txt = ax.text(
     0,
-    1.06,
-    "A look at the rolling gap between goals conceded and PSxG faced (using 10-game\nwindows), highlighting Milinković-Savić's standout shot-stopping metrics.",
+    1.04,
+    justifiedText,
     ha="left",
     va="bottom",
     fontsize=9,
@@ -265,16 +260,6 @@ ax.text(
 
 plt.savefig(
     f"{outputFolder}/{OUTPUT_NAME}.png",
-    dpi=600,
-    facecolor="#eee",
-    bbox_inches="tight",
-    edgecolor="none",
-    pad_inches=0.2,
-    transparent=False,
-)
-
-plt.savefig(
-    f"{outputFolder}/{OUTPUT_NAME}_ig.png",
     dpi=600,
     facecolor="#eee",
     bbox_inches="tight",

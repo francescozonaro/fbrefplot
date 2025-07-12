@@ -2,33 +2,34 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import soccerdata as sd
 import os
-import math
 import numpy as np
 import urllib.request
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import matplotlib.patheffects as path_effects
+import datetime
 
 from PIL import Image
-from scipy.stats import poisson
+from _commons import initPlotting, initFolders, flattenMultiCol, justifyText
 
-# # Initialization
-plt.rcParams["font.family"] = "Monospace"
-outputFolder = os.path.join("imgs/", str(f"multilineplot"))
-os.makedirs(outputFolder, exist_ok=True)
+# Initialization
+initPlotting()
+outputFolder, dataFolder = initFolders(imageSubFolder="multiline")
 
 # Data
-dataFolderName = "fbrefData"
-os.makedirs(dataFolderName, exist_ok=True)
-picklePath = os.path.join(dataFolderName, f"20250610.pkl")
-fbref = sd.FBref(leagues="ENG-Premier League", seasons=[2023, 2024])
+os.makedirs(dataFolder, exist_ok=True)
+fbref = sd.FBref(leagues="ENG-Premier League", seasons=range(2017, 2025))
 
-TEAM_NAME = "Tottenham"
+SALTY_SALT = datetime.date.today().strftime("%Y%m%d")
+TEAM_NAME = "Aston Villa"
+OUTPUT_NAME = f"{SALTY_SALT}_{TEAM_NAME.replace(' ', '')}_rollingPerformances"
+TITLE_TEXT = "Aston Villa's rise through the years"
+SUBTITLE_TEXT = "A look at Joan García's 2024-25 season at Espanyol, consistently overperforming his Post-Shot Expected Goals (PSxG) faced, as shown by the rolling gap (10-game window) between goals conceded and PSxG."
+CHARS_PER_LINE = 80
+DATA_CACHING_PATH = os.path.join(dataFolder, f"{SALTY_SALT}_{TEAM_NAME}_data.pkl")
+ROLLING_WINDOW = 38
 
-if not os.path.exists(picklePath):
-    df = fbref.read_schedule()
-    df = df.reset_index()
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = ["_".join(col).strip("_") for col in df.columns.values]
+if not os.path.exists(DATA_CACHING_PATH):
+    df = fbref.read_schedule().reset_index()
+    df.columns = flattenMultiCol(df.columns)
 
     df = df[(df["home_team"] == TEAM_NAME) | (df["away_team"] == TEAM_NAME)]
     df[["home_score", "away_score"]] = (
@@ -44,6 +45,7 @@ if not os.path.exists(picklePath):
     xg = []
     xgAg = []
     points = []
+    seasons = []
 
     for index, row in df.iterrows():
         match_id = row.game_id
@@ -57,6 +59,7 @@ if not os.path.exists(picklePath):
             or (row.away_score > row.home_score and row.away_team == TEAM_NAME)
             else 1 if row.home_score == row.away_score else 0
         )
+        seasons.append(row.season)
 
     data = {
         "goals": gls,
@@ -64,17 +67,23 @@ if not os.path.exists(picklePath):
         "xG": xg,
         "xG_against": xgAg,
         "points": points,
+        "season": seasons,
     }
 
     ff = pd.DataFrame(data)
-    ff.to_pickle(picklePath)
+    ff.to_pickle(DATA_CACHING_PATH)
 else:
-    ff = pd.read_pickle(picklePath)
+    ff = pd.read_pickle(DATA_CACHING_PATH)
 
-ff = ff.rolling(window=10, min_periods=10).mean()
-
+tdf = ff.copy()
+aff = ff.copy()
 compare_metrics = ["points", "goals", "xG", "goals_against", "xG_against"]
-# compare_metrics = ["points", "goals", "goals_against"]
+ff[compare_metrics] = (
+    ff[compare_metrics].rolling(window=ROLLING_WINDOW, min_periods=10).mean()
+)
+aff[compare_metrics] = aff[compare_metrics].expanding(min_periods=10).mean()
+
+
 betterMetricNames = {
     "points": "Points",
     "goals": "Goals Scored",
@@ -92,7 +101,7 @@ colors = {
 
 # Subplots
 fig, axs = plt.subplots(
-    nrows=len(compare_metrics), ncols=1, figsize=(10, 14), sharex=True, dpi=72
+    nrows=len(compare_metrics), ncols=1, figsize=(10, 14), sharex=True, dpi=600
 )
 fig.subplots_adjust(hspace=0.4)
 fig.patch.set_facecolor("#eeeeee")
@@ -109,13 +118,21 @@ for ax, metric in zip(axs, compare_metrics):
         x,
         ff[metric],
         label=betterMetricNames.get(metric),
-        color=colors[metric],
+        color="#CCCCCC",
         linewidth=2.5,
     )
+    ax.plot(
+        x,
+        aff[metric],
+        label=betterMetricNames.get(metric),
+        color=colors[metric],
+        linewidth=1.5,
+    )
 
-    mean_value = ff[metric].mean()
+    # mean_value = ff[metric].mean()
+    meanValue = tdf[metric].expanding(min_periods=10).mean().iloc[-1]
     ax.axhline(
-        mean_value,
+        meanValue,
         linestyle="--",
         color=colors[metric],
         linewidth=1,
@@ -124,43 +141,29 @@ for ax, metric in zip(axs, compare_metrics):
     )
 
     ax.set_ylabel(f"{betterMetricNames.get(metric)}", labelpad=10)
-    ax.set_yticks(np.arange(0.0, 3.00, 0.5))
-    ax.legend(loc="upper left", fontsize="small", frameon=False)
+    # ax.set_yticks(np.arange(0.0, 2.01, 0.5))
+    ax.legend(loc="upper right", fontsize="small", frameon=False)
 
-    ax.plot(
-        [38, 38],
-        [ax.get_ylim()[0], ax.get_ylim()[1]],
-        color="black",
-        alpha=0.35,
-        zorder=2,
-        ls="--",
-        lw=2,
-    )
+print(ff)
+seasonChangeIndices = ff[ff["season"] != ff["season"].shift()].index.tolist()
+tick_positions = []
+tick_labels = []
 
-text_ = axs[0].annotate(
-    xy=(38, 2.3),
-    text="Start of\n2024/25",
-    color="black",
-    size=9,
-    va="center",
-    ha="center",
-    weight="bold",
-    zorder=4,
-)
-text_.set_path_effects(
-    [
-        path_effects.Stroke(linewidth=1.5, foreground="white"),
-        path_effects.Normal(),
-    ]
-)
+for x in seasonChangeIndices:
+    if x != 0:
+        tick_positions.append(x)
+        label = f"Start of\n20{ff.iloc[x].season[:2]}/{ff.iloc[x].season[2:]}"
+        tick_labels.append(label)
+ax.set_xticks(tick_positions)
+ax.set_xticklabels(tick_labels, ha="center", fontsize=7, weight="bold")
 
-axs[-1].set_xlabel("Gameday", labelpad=10)
-axs[-1].set_xticks(range(0, len(ff) + 1, 5))
+# axs[-1].set_xlabel("Gameday", labelpad=10)
+# axs[-1].set_xticks(range(0, len(ff) + 1, 10))
 
 fig.text(
     0.13,
     0.94,
-    "Tottenham's EPL performances under Ange (2023 to 2025)",
+    TITLE_TEXT,
     ha="left",
     va="bottom",
     fontsize=15,
@@ -171,7 +174,7 @@ fig.text(
 txt = fig.text(
     0.13,
     0.9,
-    "The 10-game rolling average of Spurs' EPL form under Ange — a story that started with\npromise, slipped into struggle, and somehow still ended with silver in hand.",
+    justifyText(SUBTITLE_TEXT, CHARS_PER_LINE),
     ha="left",
     va="bottom",
     fontsize=9,
@@ -191,14 +194,14 @@ fig.text(
     family="Monospace",
 )
 
-league_logo = "https://images.fotmob.com/image_resources/logo/teamlogo/8586.png"
+league_logo = "https://images.fotmob.com/image_resources/logo/teamlogo/10252.png"
 league_icon = Image.open(urllib.request.urlopen(league_logo)).convert("LA")
 logo_ax = fig.add_axes([0.825, 0.895, 0.075, 0.075], anchor="C")
 logo_ax.imshow(league_icon)
 logo_ax.axis("off")
 
 plt.savefig(
-    f"{outputFolder}/20250610_{TEAM_NAME}.png",
+    f"{outputFolder}/{OUTPUT_NAME}",
     dpi=600,
     facecolor="#eeeeee",
     bbox_inches="tight",
