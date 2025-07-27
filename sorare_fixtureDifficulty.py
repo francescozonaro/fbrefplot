@@ -14,9 +14,9 @@ from _commons import initPlotting, initFolders, flattenMultiCol, justifyText
 # Functions
 def isEasyMatch(team_row, mode, offStrong, offWeak, defStrong, defWeak):
     if mode == "DEF":
-        return team_row["team"] in defStrong and team_row["opponent"] in offWeak
+        return team_row["opponent"] in offWeak  # and team_row["team"] in defStrong
     else:  # mode == "OFF"
-        return team_row["team"] in offStrong and team_row["opponent"] in defWeak
+        return team_row["opponent"] in defWeak  # and team_row["team"] in offStrong
 
 
 # Initialization
@@ -33,9 +33,7 @@ MIN_GOOD_GWS_NUMBER = 5
 CURRENT_YEAR = 2025
 CURRENT_SEASON = "2526"
 
-fbref = sd.FBref(
-    leagues="BEL-Belgian Pro League", seasons=[CURRENT_YEAR - 1, CURRENT_YEAR]
-)
+fbref = sd.FBref(leagues="USA-Major League Soccer", seasons=2025)
 
 if not os.path.exists(CACHING_PATH):
     df = fbref.read_schedule().reset_index()
@@ -57,7 +55,6 @@ teams = sorted(pd.unique(toBePlayedFrame["home_team"].values))
 
 # Build dictionary with scores for each team
 playedFrame[["hg", "ag"]] = playedFrame["score"].str.split("–", expand=True)
-playedFrame = playedFrame[playedFrame["round"] == "Regular season"]
 playedFrame["hg"] = playedFrame["hg"].astype(int)
 playedFrame["ag"] = playedFrame["ag"].astype(int)
 
@@ -66,7 +63,8 @@ currentSeasonPlayedFrame = playedFrame[playedFrame["season"] == CURRENT_SEASON]
 if (len(currentSeasonPlayedFrame) / len(teams)) > 9:
     usedFrame = currentSeasonPlayedFrame.reset_index(drop=True)
 else:
-    usedFrame = playedFrame.reset_index(drop=True)
+    print("Not enough fixtures")
+    exit()
 
 teamScores = defaultdict(dict)
 promotedTeams = []
@@ -106,7 +104,6 @@ normalizedMatches = []
 for _, row in toBePlayedFrame.iterrows():
     normalizedMatches.append(
         {
-            "week": row["week"],
             "team": row["home_team"],
             "opponent": row["away_team"],
             "is_home": True,
@@ -114,7 +111,6 @@ for _, row in toBePlayedFrame.iterrows():
     )
     normalizedMatches.append(
         {
-            "week": row["week"],
             "team": row["away_team"],
             "opponent": row["home_team"],
             "is_home": False,
@@ -149,18 +145,21 @@ defWeakTeams = teamScoresFrame[teamScoresFrame["defScore"] >= defOppositionThres
     "team"
 ].tolist()
 
+print(defStrongTeams)
+print(defWeakTeams)
+print(offStrongTeams)
+print(offWeakTeams)
+
 # Note that every team is processed offensively even without explicitly iterating on the "OFF" target mode
-filteredPairings = {}
 maxBestPairings = 0
-for targetTeam in teams:
-    for targetMode in ["DEF"]:  # ["DEF", "OFF"]
+for targetMode in ["DEF", "OFF"]:
+    easyFixturesDict = defaultdict(int)
+    for targetTeam in teams:
         targetGames = normalizedFrame[normalizedFrame["team"] == targetTeam]
         pairingCounts = {}
 
         for _, tgtRow in targetGames.iterrows():
-            week = tgtRow["week"]
-
-            if not isEasyMatch(
+            if isEasyMatch(
                 tgtRow,
                 targetMode,
                 offStrongTeams,
@@ -168,160 +167,13 @@ for targetTeam in teams:
                 defStrongTeams,
                 defWeakTeams,
             ):
-                continue
+                easyFixturesDict[targetTeam] += 1
 
-            sameWeekMatches = normalizedFrame[
-                (normalizedFrame["week"] == week)
-                & (normalizedFrame["team"] != targetTeam)
-            ]
-
-            for _, matchRow in sameWeekMatches.iterrows():
-                oppositeTargetMode = "OFF" if targetMode == "DEF" else "DEF"
-                if isEasyMatch(
-                    matchRow,
-                    oppositeTargetMode,
-                    offStrongTeams,
-                    offWeakTeams,
-                    defStrongTeams,
-                    defWeakTeams,
-                ):
-                    team = matchRow["team"]
-                    pairingCounts[team] = pairingCounts.get(team, 0) + 1
-
-        sortedPairings = sorted(pairingCounts.items(), key=lambda x: x[1], reverse=True)
-
-        if sortedPairings:
-            highestCount = sortedPairings[0][1]
-            maxBestPairings = max(maxBestPairings, sortedPairings[0][1])
-            if highestCount >= MIN_GOOD_GWS_NUMBER:
-                filteredPairings[targetTeam] = pd.DataFrame(
-                    sortedPairings, columns=["Team", "Count"]
-                )
-
-
-rows = int(round(len(filteredPairings) / 2))
-
-fig, axs = plt.subplots(rows, 2, figsize=(12, 16), sharex=True, dpi=72)
-fig.subplots_adjust(wspace=0.1, hspace=0.3)
-fig.patch.set_facecolor("#eeeeee")
-
-teamKeys = list(filteredPairings.keys())
-
-for i, ax in enumerate(axs.flatten()):
-
-    if i >= len(filteredPairings):
-        fig.delaxes(ax)
-        continue
-
-    ax.tick_params(axis="x", labelbottom=True)
-    dark_green = "#004d00"
-    light_green = "#ffb703"
-
-    # Create the colormap
-    cmap = mcolors.LinearSegmentedColormap.from_list(
-        "green_gradient", [light_green, dark_green]
+    sortedEasyFixturesTeams = sorted(
+        easyFixturesDict.items(), key=lambda x: x[1], reverse=True
     )
 
-    plotFrame = filteredPairings.get(teamKeys[i])
-
-    norm = plt.Normalize(vmin=1, vmax=maxBestPairings)
-    colors = [cmap(norm(value)) for value in plotFrame["Count"]]
-
-    bars = ax.barh(
-        plotFrame["Team"],
-        plotFrame["Count"],
-        color=colors,
-        edgecolor="grey",
-        alpha=0.8,
-    )
-
-    ax.set_yticks([])
-    for bar, team in zip(bars, plotFrame["Team"]):
-        text = ax.text(
-            x=0.2,  # A bit of padding from left edge
-            y=bar.get_y() + bar.get_height() / 2,
-            s=team,
-            va="center",
-            ha="left",
-            fontweight="bold",
-            fontsize=11,
-            color="white",
-        )
-
-        text.set_path_effects(
-            [
-                path_effects.withStroke(linewidth=1.75, foreground="black"),
-            ]
-        )
-
-    ax.axvline(0, color="black", lw=1)
-    ax.set_title(
-        f"{teamKeys[i]}",
-        fontsize=13,
-        color="#5A5A5A",
-        fontweight="bold",
-        pad=8,
-    )
-    ax.grid(axis="x", linestyle="--", alpha=0.6)
-    ax.set_facecolor("#eeeeee")
-    ax.invert_yaxis()
-
-HORIZONTAL_ALIGN = 0.125
-
-fig.text(
-    HORIZONTAL_ALIGN,
-    1.052,
-    "Jupiler League best Sorare mini-stack pairings [25/26]",
-    ha="left",
-    va="bottom",
-    fontsize=20,
-    weight="bold",
-    color="black",
-)
-
-subtitleText = "Each subplot represents a defensively solid Jupiler League team. Each bar represent the number of gameweeks where both the defensive team and the candidate strong attacking team have easy fixtures, respectively against offensively weak and defensively weak teams. Offensive and defensive strength is based on goals scored and conceded during the 2024-25 regular season. Data: FBRef | @francescozonaro"
-charsPerLine = 110
-justifiedText = justifyText(subtitleText, charsPerLine)
-
-txt = fig.text(
-    HORIZONTAL_ALIGN,
-    1.03,
-    justifiedText,
-    size=10,
-    color="#5A5A5A",
-    va="top",
-)
-txt.set_linespacing(1.5)
-
-# Build display text
-category_text = (
-    f"Defensively Strong: [{', '.join(defStrongTeams)}]\n"
-    f"Defensively Weak: [{', '.join(defWeakTeams)}]\n"
-    f"Offensively Strong: [{', '.join(offStrongTeams)}]\n"
-    f"Offensively Weak: [{', '.join(offWeakTeams)}]"
-)
-
-
-legend = fig.text(
-    HORIZONTAL_ALIGN,
-    0.965,
-    category_text,
-    size=10,
-    color="#5A5A5A",
-    va="top",
-    ha="left",
-)
-legend.set_linespacing(1.5)
-
-plt.savefig(
-    f"{outputFolder}/{VISUAL_FILENAME}.png",
-    dpi=600,
-    facecolor="#eeeeee",
-    bbox_inches="tight",
-    pad_inches=0.3,
-    edgecolor="none",
-    transparent=False,
-)
-
-
-# Offensive and defensive scores (and consequently teams) where computed automatically (best and worst 40%) based on last season data. I've no in depth knowledge regarding JPL, so it may be possible to get more accurate results with custom inputs.
+    print("")
+    print(targetMode)
+    for pair in sortedEasyFixturesTeams:
+        print(f"{pair[0]} -> {pair[1]}")
