@@ -125,6 +125,7 @@ addTitleSubAndLogo(
     subtitleFontSize=9,
     subtitleLineSpacing=1.5,
     spacing=0.03,
+    source="Data: FBRef | @francescozonaro",
 )
 
 plt.savefig(

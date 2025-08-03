@@ -7,6 +7,7 @@ import soccerdata as sd
 import urllib.request
 import os
 
+from _commons import addTitleSubAndLogo
 from adjustText import adjust_text
 from PIL import Image
 
@@ -84,44 +85,18 @@ adjust_text(
     arrowprops=dict(arrowstyle="-", color="gray", lw=0.5),
 )
 
-league_logo = "https://images.fotmob.com/image_resources/logo/leaguelogo/86.png"
-league_icon = Image.open(urllib.request.urlopen(league_logo)).convert("LA")
-logo_ax = fig.add_axes([0.05, 0.925, 0.05, 0.05], anchor="C")
-logo_ax.imshow(league_icon)
-logo_ax.axis("off")
-
-ax.text(
-    0,
-    1.11,
-    "Serie B's tackling gladiators | 2024-25",
-    ha="left",
-    va="bottom",
-    fontsize=15,
-    weight="bold",
-    color="black",
-    transform=ax.transAxes,
-)
-
-ax.text(
-    0,
-    1.05,
-    "A duel of grit and precision in the modern arena — only those proven in battle \n(900+ minutes and above-median tackle counts) made the scroll.",
-    ha="left",
-    va="bottom",
-    fontsize=9,
-    color="#5A5A5A",
-    transform=ax.transAxes,
-)
-
-ax.text(
-    0,
-    1.02,
-    "@francescozonaro",
-    ha="left",
-    va="bottom",
-    fontsize=9,
-    color="#5A5A5A",
-    transform=ax.transAxes,
+addTitleSubAndLogo(
+    fig,
+    ax,
+    title="Serie B's tackling gladiators | 2024-25",
+    titleFontSize=15,
+    titleLineSpacing=1,
+    subtitle="This scatterplot showcases Serie B players who have played at least the median number of minutes and attempt at least the median number of tackles per 90 minutes during the 2024-25 season. The plot highlights those who excel not only in the frequency of tackles attempted but also in the percentage of tackles won, combining these metrics into a composite score to identify the league's most effective and active defensive players.",
+    subtitleFontSize=9,
+    subtitleLineSpacing=1.5,
+    spacing=0.02,
+    source="Data: FBRef | @francescozonaro",
+    logo="https://images.fotmob.com/image_resources/logo/leaguelogo/86.png",
 )
 
 plt.savefig(
@@ -129,17 +104,7 @@ plt.savefig(
     dpi=600,
     facecolor="#eeeeee",
     bbox_inches="tight",
-    pad_inches=0.2,
-    edgecolor="none",
-    transparent=False,
-)
-
-plt.savefig(
-    f"{outputFolder}/gladiators_ig.png",
-    dpi=600,
-    facecolor="#eeeeee",
-    bbox_inches="tight",
-    pad_inches=0.3,
+    pad_inches=0.4,
     edgecolor="none",
     transparent=False,
 )
