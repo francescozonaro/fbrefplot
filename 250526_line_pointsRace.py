@@ -7,6 +7,7 @@ import urllib.request
 
 from PIL import Image
 from scipy.stats import poisson
+from _commons import addTitleSubAndLogo
 
 
 def calculateXpts(home_xg, away_xg, max_goals=5):
@@ -83,7 +84,7 @@ for _, row in df.iterrows():
         cumulativeData[team]["expected"].append(runningTotals[team]["expected"])
 
 # Visual
-fig = plt.figure(figsize=(10, 6), dpi=100)
+fig = plt.figure(figsize=(10, 6), dpi=600)
 ax = plt.subplot()
 ax.set_facecolor("#eeeeee")
 ax.grid(visible=True, ls="--", color="lightgrey")
@@ -114,60 +115,20 @@ for team in teams:
 
 ax.legend(markerscale=1, loc="upper left", fontsize="x-small", frameon=False)
 
-ax.text(
-    0,
-    1.15,
-    "Inter's data-driven Scudetto (too bad it's not real)",
-    ha="left",
-    va="bottom",
-    fontsize=15,
-    weight="bold",
-    color="black",
-    transform=ax.transAxes,
+addTitleSubAndLogo(
+    fig,
+    ax,
+    title="Inter's data-driven Scudetto (too bad it's not real)",
+    titleFontSize=15,
+    titleLineSpacing=1,
+    subtitle="It was an exciting race in Serie A, with Napoli pulling ahead in the final stretch, while\nxPts favored Inter throughout — a reminder that xG doesn't lift trophies (yet).",
+    subtitleFontSize=9,
+    subtitleLineSpacing=1.5,
+    spacing=0.03,
 )
-
-txt = ax.text(
-    0,
-    1.06,
-    "It was an exciting race in Serie A, with Napoli pulling ahead in the final stretch, while\nxPts favored Inter throughout — a reminder that xG doesn't lift trophies (yet).",
-    ha="left",
-    va="bottom",
-    fontsize=9,
-    color="#5A5A5A",
-    transform=ax.transAxes,
-)
-txt.set_linespacing(1.5)
-
-ax.text(
-    1.0,
-    0.035,
-    "@francescozonaro | Data from FBRef",
-    transform=ax.transAxes,
-    ha="right",
-    va="top",
-    fontsize=8,
-    color="#5A5A5A",
-    family="Monospace",
-)
-
-league_logo = "https://images.fotmob.com/image_resources/logo/leaguelogo/55.png"
-league_icon = Image.open(urllib.request.urlopen(league_logo)).convert("LA")
-logo_ax = fig.add_axes([0.825, 0.95, 0.075, 0.075], anchor="C")
-logo_ax.imshow(league_icon)
-logo_ax.axis("off")
 
 plt.savefig(
     f"{outputFolder}/serie_a_race.png",
-    dpi=600,
-    facecolor="#eeeeee",
-    bbox_inches="tight",
-    pad_inches=0.2,
-    edgecolor="none",
-    transparent=False,
-)
-
-plt.savefig(
-    f"{outputFolder}/serie_a_race_ig.png",
     dpi=600,
     facecolor="#eeeeee",
     bbox_inches="tight",

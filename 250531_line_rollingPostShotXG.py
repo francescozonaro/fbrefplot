@@ -9,7 +9,13 @@ import numpy as np
 import datetime
 
 from PIL import Image
-from _commons import initPlotting, initFolders, flattenMultiCol, justifyText
+from _commons import (
+    addTitleSubAndLogo,
+    initPlotting,
+    initFolders,
+    flattenMultiCol,
+    justifyText,
+)
 
 
 # Initialization
@@ -147,7 +153,7 @@ for i in range(1, len(df["game"])):
         linewidth=0.1,
     )
 
-ax.legend(markerscale=2, loc="upper right", fontsize="x-small", frameon=False)
+ax.legend(markerscale=2, loc="upper left", fontsize="x-small", frameon=False)
 
 for x in [ROLLING_WINDOW]:
     ax.fill_between(
@@ -207,55 +213,18 @@ for x in seasonChangeIndices:
             ]
         )
 
-league_logo = "https://images.fotmob.com/image_resources/logo/leaguelogo/87.png"
-team_icon = Image.open(urllib.request.urlopen(league_logo)).convert("LA")
-logo_ax = fig.add_axes([0.05, 0.9825, 0.04, 0.04], anchor="C")
-logo_ax.imshow(team_icon)
-logo_ax.axis("off")
-
-team_logo = "https://images.fotmob.com/image_resources/logo/teamlogo/8558.png"
-team_icon = Image.open(urllib.request.urlopen(team_logo)).convert("LA")
-team_ax = fig.add_axes([0.05, 0.93, 0.04, 0.04], anchor="C")
-team_ax.imshow(team_icon)
-team_ax.axis("off")
-
-
-ax.text(
-    0,
-    1.15,
-    TITLE_TEXT,
-    ha="left",
-    va="bottom",
-    fontsize=14,
-    weight="bold",
-    color="black",
-    transform=ax.transAxes,
-)
-
-justifiedText = justifyText(SUBTITLE_TEXT, CHARS_PER_LINE)
-
-txt = ax.text(
-    0,
-    1.04,
-    justifiedText,
-    ha="left",
-    va="bottom",
-    fontsize=9,
-    color="#5A5A5A",
-    transform=ax.transAxes,
-)
-txt.set_linespacing(1.5)
-
-ax.text(
-    1.0,
-    0.035,
-    "@francescozonaro | Data from FBRef",
-    transform=ax.transAxes,
-    ha="right",
-    va="top",
-    fontsize=8,
-    color="#5A5A5A",
-    family="Monospace",
+addTitleSubAndLogo(
+    fig,
+    ax,
+    title=TITLE_TEXT,
+    titleFontSize=15,
+    titleLineSpacing=1,
+    subtitle=SUBTITLE_TEXT,
+    subtitleFontSize=9,
+    subtitleLineSpacing=1.5,
+    spacing=0.03,
+    source="Data: FBRef | @francescozonaro",
+    logo="https://images.fotmob.com/image_resources/logo/leaguelogo/87.png",
 )
 
 plt.savefig(
