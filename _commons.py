@@ -7,18 +7,6 @@ import urllib.request
 from PIL import Image
 
 
-def initPlotting(fontFamily="Monospace"):
-    plt.rcParams["font.family"] = fontFamily
-
-
-def initFolders(imageSubFolder: str):
-    outFolder = os.path.join("imgs", imageSubFolder)
-    os.makedirs(outFolder, exist_ok=True)
-    dataFolder = "fbrefData"
-    os.makedirs(dataFolder, exist_ok=True)
-    return outFolder, dataFolder
-
-
 def flattenMultiCol(columns):
     if isinstance(columns, pd.MultiIndex):
         return ["_".join(map(str, col)).strip("_").lower() for col in columns.values]
@@ -135,3 +123,24 @@ def addTitleSubAndLogo(
             fontsize=9,
             alpha=0.7,
         )
+
+
+# NEW RELEASE
+
+import numpy as np
+from scipy.stats import linregress
+
+
+def calc_trend_from_values(values):
+
+    values = np.array(values, dtype=float)
+    values = values[~np.isnan(values)]
+
+    if len(values) < 2 or np.all(values == 0):
+        return 0.0
+
+    x = np.arange(len(values))
+    slope, _, _, _, _ = linregress(x, values)
+    slope_normalized = slope / (np.mean(values) + 1e-6)
+
+    return slope_normalized
