@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def normalize_fbref_schedule(df: pd.DataFrame, isFuture: bool) -> pd.DataFrame:
+def normalize_fbref_schedule(df: pd.DataFrame, home_cols, away_cols) -> pd.DataFrame:
     """
     Normalize match-level data into team-level format.
 
@@ -19,35 +19,6 @@ def normalize_fbref_schedule(df: pd.DataFrame, isFuture: bool) -> pd.DataFrame:
         A "long" DataFrame where each row corresponds to one team's perspective.
         Columns: team, opponent, xg, opponent_xg, goals, opponent_goals, at_home
     """
-
-    home_cols = {
-        "home_team": "team",
-        "away_team": "opponent",
-    }
-    away_cols = {
-        "home_team": "opponent",
-        "away_team": "team",
-    }
-
-    if not isFuture:
-        df["home_goals"], df["away_goals"] = separate_score(df["score"])
-
-        home_cols.update(
-            {
-                "home_xg": "xg",
-                "away_xg": "opponent_xg",
-                "home_goals": "goals",
-                "away_goals": "opponent_goals",
-            }
-        )
-        away_cols.update(
-            {
-                "home_xg": "opponent_xg",
-                "away_xg": "xg",
-                "home_goals": "opponent_goals",
-                "away_goals": "goals",
-            }
-        )
 
     home_df = df.rename(columns=home_cols).copy()
     home_df["at_home"] = True

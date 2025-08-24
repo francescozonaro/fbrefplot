@@ -8,7 +8,7 @@ import urllib.request
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from _commons import flattenMultiCol, calc_trend_from_values, addTitleSubAndLogo
-from _fbref_commons import normalize_fbref_schedule
+from _fbref_commons import normalize_fbref_schedule, separate_score
 
 IMAGE_SUB_FOLDER = "JPL"
 VISUAL_NAME = "250816_underdogSmashersForSorareJPL"
@@ -51,7 +51,24 @@ else:
     df = pd.read_pickle(CACHE_PATH)
 
 df = df[df["round"] == "Regular season"]
-df = normalize_fbref_schedule(df)
+df["home_goals"], df["away_goals"] = separate_score(df["score"])
+home_cols = {
+    "home_team": "team",
+    "away_team": "opponent",
+    "home_xg": "xg",
+    "away_xg": "opponent_xg",
+    "home_goals": "goals",
+    "away_goals": "opponent_goals",
+}
+away_cols = {
+    "home_team": "opponent",
+    "away_team": "team",
+    "home_xg": "opponent_xg",
+    "away_xg": "xg",
+    "home_goals": "opponent_goals",
+    "away_goals": "goals",
+}
+df = normalize_fbref_schedule(df, home_cols, away_cols)
 df = df[
     [
         "round",

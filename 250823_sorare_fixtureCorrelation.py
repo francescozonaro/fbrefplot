@@ -8,7 +8,7 @@ import matplotlib.colors as mcolors
 
 from datetime import datetime
 from collections import defaultdict
-from _commons import flattenMultiCol, jusyText
+from _commons import flattenMultiCol
 from _fbref_commons import (
     separate_score,
     filter_regular_season,
@@ -153,7 +153,15 @@ else:
     defStrong = [t for t, v in teamScores.items() if v["defScore"] <= defThreshold]
     defWeak = [t for t, v in teamScores.items() if v["defScore"] >= defOppThreshold]
 
-df_norm = normalize_fbref_schedule(df_future, isFuture=True)
+home_cols = {
+    "home_team": "team",
+    "away_team": "opponent",
+}
+away_cols = {
+    "home_team": "opponent",
+    "away_team": "team",
+}
+df_norm = normalize_fbref_schedule(df_future, home_cols, away_cols)
 
 # Note that every team is processed offensively even without explicitly iterating on the "OFF" target mode
 res = {}
