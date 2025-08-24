@@ -41,7 +41,7 @@ PERCENTILE_THRESHOLD = 60  # 0-100
 MIN_GOOD_GWS_NUMBER = 5
 PREV_SEASON = "2425"
 CUR_SEASON = "2526"
-USE_CUSTOM_INPUTS = False
+USE_CUSTOM_INPUTS = True
 
 fbref = sd.FBref(
     leagues=TARGET_LEAGUE,
@@ -200,7 +200,7 @@ rows = int(round(len(res) / 2))
 
 fig, axs = plt.subplots(rows, 2, figsize=(12, 16), sharex=True, dpi=600)
 fig.subplots_adjust(wspace=0.1, hspace=0.3)
-fig.patch.set_facecolor("#eeeeee")
+fig.patch.set_facecolor("#eceff4")
 
 teamKeys = list(res.keys())
 
@@ -211,8 +211,8 @@ for i, ax in enumerate(axs.flatten()):
         continue
 
     ax.tick_params(axis="x", labelbottom=True)
-    dark_green = "#004d00"
-    light_green = "#ffb703"
+    dark_green = "#226f54"
+    light_green = "#c3d011"
 
     # Create the colormap
     cmap = mcolors.LinearSegmentedColormap.from_list(
@@ -255,12 +255,12 @@ for i, ax in enumerate(axs.flatten()):
     ax.set_title(
         f"{teamKeys[i]}",
         fontsize=13,
-        color="#5A5A5A",
+        # color="#5A5A5A",
         fontweight="bold",
         pad=8,
     )
     ax.grid(axis="x", linestyle="--", alpha=0.6)
-    ax.set_facecolor("#eeeeee")
+    ax.set_facecolor("#eceff4")
     ax.invert_yaxis()
 
 
@@ -268,7 +268,7 @@ print("reaching")
 plt.savefig(
     f"{OUTPUT_FOLDER}/{VISUAL_NAME}.png",
     dpi=600,
-    facecolor="#eeeeee",
+    facecolor="#eceff4",
     bbox_inches="tight",
     pad_inches=0.3,
     edgecolor="none",
